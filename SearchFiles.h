@@ -1,7 +1,7 @@
 #include <iostream>
-#include <thread>
 #include <string>
 #include <vector>
+#include "thread_pool.h"
 class SearchFiles
 {
 public:
@@ -22,6 +22,8 @@ private:
     int argc;
     char **argv;
     SearchConfig config;
+
+    std::unique_ptr<threadPool> pool;
 
     void parse_args(int argc, char *argv[], SearchConfig &config);
 };

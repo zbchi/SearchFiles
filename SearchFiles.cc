@@ -2,6 +2,7 @@
 SearchFiles::SearchFiles(int argc, char *argv[]) : argc(argc), argv(argv)
 {
     parse_args(this->argc, this->argv, this->config);
+    this->pool = std::make_unique<threadPool>(this->config.max_concurrency);
 }
 SearchFiles::~SearchFiles() {};
 void SearchFiles::parse_args(int argc, char *argv[], SearchConfig &config)
