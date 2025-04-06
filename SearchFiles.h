@@ -1,7 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <filesystem>
 #include "thread_pool.h"
+namespace fs = std::filesystem;
+
 class SearchFiles
 {
 public:
@@ -24,6 +27,9 @@ private:
     SearchConfig config;
 
     std::unique_ptr<threadPool> pool;
+    std::mutex cout_mutex;
+    std::mutex cerr_mutex;
 
     void parse_args(int argc, char *argv[], SearchConfig &config);
+    void search(SearchConfig &config, std::string current_path, int depth);
 };
