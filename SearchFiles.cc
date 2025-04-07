@@ -4,10 +4,18 @@ SearchFiles::SearchFiles(int argc, char *argv[]) : argc(argc), argv(argv)
     int depth = 0;
     parse_args(this->argc, this->argv, this->config);
     this->pool = std::make_unique<ThreadPool>(this->config.max_concurrency);
-    pool->enqueue([this, depth]
-                  { search(this->config, this->config.root_path, depth + 1); });
+
+    task_count++;
+    pool->enqueue([this]
+                  { search(this->config, this->config.root_path, 0);
+                task_count--; });
 }
-SearchFiles::~SearchFiles() {};
+SearchFiles::~SearchFiles()
+{
+    std::unique_lock<std::mutex> lock(main_thread_mutex);
+    main_cv.wait(lock, [this]
+                 { return task_count == 0; });
+}
 void SearchFiles::parse_args(int argc, char *argv[], SearchConfig &config)
 {
     for (int i = 1; i < argc; i++)
@@ -49,11 +57,15 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
                 fs::path path = entry.path();
                 if (entry.is_directory())
                 {
+                    task_count++;
                     pool->enqueue([this, path, depth]
-                                  { search(this->config, path.string(), depth + 1); });
+                                  { search(this->config, path.string(), depth + 1);
+                                    task_count--;
+                                if(task_count==0)main_cv.notify_one(); });
                 }
                 else if (path.extension() == config.file_type)
                 {
+                    std::cout << "found .cc" << std::endl;
                     {
                         std::lock_guard<std::mutex> lock(cout_mutex);
                         std::cout << path << std::endl;
@@ -67,8 +79,12 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
     }
     catch (const fs::filesystem_error &e)
     {
-        {
-            std::lock_guard<std::mutex> lock(cout_mutex);
-        }
     }
+}
+
+void SearchFiles::main()
+{
+    int depth = 0;
+    this->pool->enqueue([this, depth]
+                        { search(this->config, this->config.root_path, depth + 1); });
 }

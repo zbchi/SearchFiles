@@ -25,12 +25,18 @@ private:
 
     int argc;
     char **argv;
+
+    int task_count = 0;
+
     SearchConfig config;
 
     std::unique_ptr<ThreadPool> pool;
     std::mutex cout_mutex;
     std::mutex cerr_mutex;
+    std::mutex main_thread_mutex;
+    std::condition_variable main_cv; 
 
     void parse_args(int argc, char *argv[], SearchConfig &config);
     void search(SearchConfig &config, std::string current_path, int depth);
+    void main();
 };
