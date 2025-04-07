@@ -1,6 +1,7 @@
 #include "SearchFiles.h"
 SearchFiles::SearchFiles(int argc, char *argv[]) : argc(argc), argv(argv)
 {
+
     int depth = 0;
     parse_args(this->argc, this->argv, this->config);
     this->pool = std::make_unique<ThreadPool>(this->config.max_concurrency);
@@ -53,7 +54,20 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
         for (const auto &entry : fs::directory_iterator(current_path, fs::directory_options::skip_permission_denied))
         {
             fs::path path = entry.path();
-            if (entry.is_directory())
+            bool skip_this = false;
+            // std::cout << is_hidden(path) << std::endl;
+
+            for (const auto &skip_path : config.skip_paths)
+            {
+                if (path == skip_path)
+                    skip_this = true;
+            }
+
+            if ((config.skip_hidden && is_hidden(path)) || skip_this)
+            {
+                continue;
+            }
+            else if (entry.is_directory())
             {
                 task_count++;
                 pool->enqueue([this, path, depth]
@@ -67,9 +81,9 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
                                               main_cv.notify_one();
                                       } });
             }
+
             else if (path.extension() == config.file_type)
             {
-                std::cout << "found .cc" << std::endl;
                 {
                     std::lock_guard<std::mutex> lock(cout_mutex);
                     std::cout << path << std::endl;
@@ -81,4 +95,11 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
     catch (const fs::filesystem_error &e)
     {
     }
+}
+
+bool SearchFiles::is_hidden(const std::filesystem::path &path)
+{
+    std::string name = path.filename().string();
+
+    return name[0] == '.';
 }

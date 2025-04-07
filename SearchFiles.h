@@ -40,5 +40,6 @@ private:
 
     void parse_args(int argc, char *argv[], SearchConfig &config);
     void search(SearchConfig &config, std::string current_path, int depth);
-    void main();
+
+    bool is_hidden(const std::filesystem::path &path);
 };
