@@ -8,7 +8,7 @@ SearchFiles::SearchFiles(int argc, char *argv[]) : argc(argc), argv(argv)
     task_count++;
     pool->enqueue([this]
                   { search(this->config, this->config.root_path, 0);
-                task_count--; });
+                                   task_count--; });
 }
 SearchFiles::~SearchFiles()
 {
@@ -52,39 +52,33 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
     {
         for (const auto &entry : fs::directory_iterator(current_path, fs::directory_options::skip_permission_denied))
         {
-            try
+            fs::path path = entry.path();
+            if (entry.is_directory())
             {
-                fs::path path = entry.path();
-                if (entry.is_directory())
-                {
-                    task_count++;
-                    pool->enqueue([this, path, depth]
-                                  { search(this->config, path.string(), depth + 1);
-                                    task_count--;
-                                if(task_count==0)main_cv.notify_one(); });
-                }
-                else if (path.extension() == config.file_type)
-                {
-                    std::cout << "found .cc" << std::endl;
-                    {
-                        std::lock_guard<std::mutex> lock(cout_mutex);
-                        std::cout << path << std::endl;
-                    }
-                }
+                task_count++;
+                pool->enqueue([this, path, depth]
+                              {
+                                      search(this->config, path.string(), depth + 1);
+
+                                      {
+                                            std::lock_guard<std::mutex>lock(this->main_thread_mutex);
+                                          task_count--;
+                                          if (task_count <= 0)
+                                              main_cv.notify_one();
+                                      } });
             }
-            catch (const std::exception &e)
+            else if (path.extension() == config.file_type)
             {
+                std::cout << "found .cc" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(cout_mutex);
+                    std::cout << path << std::endl;
+                }
             }
         }
     }
+
     catch (const fs::filesystem_error &e)
     {
     }
-}
-
-void SearchFiles::main()
-{
-    int depth = 0;
-    this->pool->enqueue([this, depth]
-                        { search(this->config, this->config.root_path, depth + 1); });
 }

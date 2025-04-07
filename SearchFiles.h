@@ -3,6 +3,8 @@
 #include <vector>
 #include <filesystem>
 #include <unistd.h>
+#include <atomic>
+
 #include "ThreadPool.h"
 namespace fs = std::filesystem;
 
@@ -26,7 +28,7 @@ private:
     int argc;
     char **argv;
 
-    int task_count = 0;
+    std::atomic<int> task_count{0};
 
     SearchConfig config;
 
@@ -34,7 +36,7 @@ private:
     std::mutex cout_mutex;
     std::mutex cerr_mutex;
     std::mutex main_thread_mutex;
-    std::condition_variable main_cv; 
+    std::condition_variable main_cv;
 
     void parse_args(int argc, char *argv[], SearchConfig &config);
     void search(SearchConfig &config, std::string current_path, int depth);
