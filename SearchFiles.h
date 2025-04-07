@@ -2,7 +2,8 @@
 #include <string>
 #include <vector>
 #include <filesystem>
-#include "thread_pool.h"
+#include <unistd.h>
+#include "ThreadPool.h"
 namespace fs = std::filesystem;
 
 class SearchFiles
@@ -26,7 +27,7 @@ private:
     char **argv;
     SearchConfig config;
 
-    std::unique_ptr<threadPool> pool;
+    std::unique_ptr<ThreadPool> pool;
     std::mutex cout_mutex;
     std::mutex cerr_mutex;
 

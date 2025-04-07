@@ -1,9 +1,11 @@
 #include "SearchFiles.h"
 SearchFiles::SearchFiles(int argc, char *argv[]) : argc(argc), argv(argv)
 {
+    int depth = 0;
     parse_args(this->argc, this->argv, this->config);
-    this->pool = std::make_unique<threadPool>(this->config.max_concurrency);
-    search(config, config.root_path, 1);
+    this->pool = std::make_unique<ThreadPool>(this->config.max_concurrency);
+    pool->enqueue([this, depth]
+                  { search(this->config, this->config.root_path, depth + 1); });
 }
 SearchFiles::~SearchFiles() {};
 void SearchFiles::parse_args(int argc, char *argv[], SearchConfig &config)
@@ -40,24 +42,33 @@ void SearchFiles::search(SearchConfig &config, std::string current_path, int dep
 
     try
     {
-        for (const auto &entry : fs::directory_iterator(current_path))
+        for (const auto &entry : fs::directory_iterator(current_path, fs::directory_options::skip_permission_denied))
         {
-            fs::path path = entry.path();
-            if (entry.is_directory())
+            try
             {
-                pool->add_task([this, path, depth]
-                               { search(this->config, path.string(), depth + 1); });
-            }
-            else if (path.extension() == config.file_type)
-            {
+                fs::path path = entry.path();
+                if (entry.is_directory())
                 {
-                    std::lock_guard<std::mutex> lock(cout_mutex);
-                    std::cout << path << std::endl;
+                    pool->enqueue([this, path, depth]
+                                  { search(this->config, path.string(), depth + 1); });
                 }
+                else if (path.extension() == config.file_type)
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        std::cout << path << std::endl;
+                    }
+                }
+            }
+            catch (const std::exception &e)
+            {
             }
         }
     }
     catch (const fs::filesystem_error &e)
     {
+        {
+            std::lock_guard<std::mutex> lock(cout_mutex);
+        }
     }
 }
